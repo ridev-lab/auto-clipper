@@ -79,10 +79,10 @@ export async function renderProject(root, pid) {
     const src = project.source_type === "youtube"
       ? h("a", { href: project.source_url, target: "_blank", rel: "noopener" }, icon("youtube"), " YouTube")
       : h("span", {}, icon("file"), " ", project.source_name);
-    subEl.replaceChildren(statusChip, src,
+    subEl.replaceChildren(...[statusChip, src,
       project.duration ? h("span", {}, fmtTime(project.duration)) : null,
       project.width ? h("span", {}, `${project.width}×${project.height} · ${Math.round(project.fps)} i/s`) : null,
-      project.language ? h("span", {}, `langue : ${project.language}`) : null);
+      project.language ? h("span", {}, `langue : ${project.language}`) : null].filter(Boolean));
     const hasFiles = (project.clips || []).some((c) => c.file);
     exportBtn.toggleAttribute("hidden", !hasFiles);
     manualBtn.disabled = !project.preview_url;
@@ -168,7 +168,9 @@ export async function renderProject(root, pid) {
       const pct = proc.status === "done" ? 100 : proc.pct || 0;
       bigPct.textContent = `${Math.round(pct)} %`;
       bar.style.width = `${pct}%`;
-      msgEl.textContent = proc.status === "queued" ? (proc.queue_pos > 1 ? `En file d'attente (position ${proc.queue_pos})` : "Démarrage…") : (proc.message || "");
+      msgEl.textContent = proc.status === "queued"
+        ? (proc.queue_pos ? `En file d'attente (position ${proc.queue_pos}) : démarre dès que la tâche en cours est finie` : "Démarrage…")
+        : (proc.message || "");
       cancelBtn.hidden = !running;
       resumeBtn.hidden = running || proc.status === "done";
       // estimation du temps restant
@@ -207,7 +209,7 @@ export async function renderProject(root, pid) {
     }
     // la grille n'est redessinée que si l'état d'un rendu change (sinon les
     // aperçus vidéo au survol seraient interrompus)
-    const sig = JSON.stringify(liveJobs.filter((j) => j.clip_id).map((j) => [j.clip_id, j.status, Math.round((j.pct || 0) / 5)]));
+    const sig = project.status + JSON.stringify(liveJobs.filter((j) => j.clip_id).map((j) => [j.clip_id, j.status, Math.round((j.pct || 0) / 5)]));
     if (sig !== clipJobsSig) { clipJobsSig = sig; renderClips(); }
   }
   let clipJobsSig = "";

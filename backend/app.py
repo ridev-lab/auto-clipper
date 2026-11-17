@@ -381,7 +381,7 @@ def _state(pid: str, since: int) -> dict:
             f = workspace_dir(pid) / "logs" / f"{focus['id']}.log"
             if f.exists():
                 lines = f.read_text(encoding="utf-8", errors="replace").splitlines()[-150:]
-                logs = [{"seq": 0, "t": l[:8], "level": l[9:16].strip().lower(), "msg": l[17:]} for l in lines]
+                logs = [{"seq": -1, "t": l[:8], "level": l[9:16].strip().lower(), "msg": l[17:]} for l in lines]
     clips = db.list_clips(pid)
     rev = hashlib.md5(json.dumps([(c["id"], c.get("render_status"), c.get("file"), c.get("updated_at")) for c in clips]).encode()).hexdigest()[:10]
     return {
@@ -397,6 +397,7 @@ async def events(pid: str, request: Request):
     async def gen():
         since, last, last_beat = 0, None, time.time()
         log_job = None
+        file_logs_sent = None
         while True:
             if await request.is_disconnected():
                 break
@@ -409,6 +410,12 @@ async def events(pid: str, request: Request):
                 if since:
                     since = 0
                     st = await run_in_threadpool(_state, pid, 0)
+            if st["logs"] and all(l["seq"] == -1 for l in st["logs"]):
+                # journal relu depuis le fichier : envoyé une seule fois par job
+                if file_logs_sent == log_job:
+                    st["logs"] = []
+                else:
+                    file_logs_sent = log_job
             if st["logs"]:
                 since = max(since, max(l["seq"] for l in st["logs"]))
             payload = json.dumps(st, ensure_ascii=False)

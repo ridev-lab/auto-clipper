@@ -93,8 +93,13 @@ def youtube_info(url: str) -> dict:
 def download_youtube(
     ctx: Context, url: str, dest_dir: Path, range_start: float | None = None, range_end: float | None = None
 ) -> tuple[Path, dict]:
-    """Télécharge en meilleure qualité <= max_height, fusionné en MP4."""
-    import yt_dlp
+    """Télécharge en meilleure qualité <= max_height (MP4) dans un processus
+    yt-dlp séparé (annulable à tout moment), puis découpe la plage demandée
+    localement. Le téléchargement « par plage » de yt-dlp passe par ffmpeg,
+    que YouTube bride fortement : on télécharge donc tout, c'est plus fiable."""
+    import sys
+
+    from .utils import run_process
 
     max_h = int(get_config()["download"]["max_height"])
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -102,52 +107,83 @@ def download_youtube(
         f"bv*[height<={max_h}][vcodec^=avc1]+ba[ext=m4a]/"
         f"bv*[height<={max_h}]+ba/b[height<={max_h}]/b"
     )
-    state = {"files": 0}
+    out_name = "download" if (range_start or range_end) else "source"
+    cmd = [
+        sys.executable, "-m", "yt_dlp", url.strip(),
+        "--no-playlist", "--newline", "--no-colors", "--no-simulate", "--progress", "--force-overwrites",
+        "-f", fmt, "--merge-output-format", "mp4", "-o", str(dest_dir / f"{out_name}.%(ext)s"),
+        "-N", "4", "--retries", "5", "--fragment-retries", "10", "--socket-timeout", "30",
+        "--progress-template", "download:[PROG] %(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s",
+        "--print", "before_dl:[TITLE] %(title)s", "--print", "before_dl:[UPLOADER] %(uploader)s",
+    ]
+    for name, conf in _js_runtimes().items():
+        cmd += ["--js-runtimes", f"{name}:{conf['path']}" if conf.get("path") else name]
+    ff = find_tool("ffmpeg")
+    if ff:
+        cmd += ["--ffmpeg-location", str(Path(ff).parent)]
 
-    def hook(d):
-        if ctx.cancel_event.is_set():
-            raise Cancelled()
-        if d.get("status") == "downloading":
-            total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-            done = d.get("downloaded_bytes") or 0
+    meta = {"title": "", "uploader": ""}
+    state = {"file": 0, "last_done": 0}
+
+    def num(v: str) -> float:
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def on_line(line: str):
+        if line.startswith("[TITLE] "):
+            meta["title"] = line[8:].strip()
+        elif line.startswith("[UPLOADER] "):
+            meta["uploader"] = line[11:].strip()
+        elif line.startswith("[PROG] "):
+            parts = line[7:].split("|")
+            if len(parts) < 4:
+                return
+            done, total, est, speed = (num(p) for p in parts[:4])
+            total = total or est
+            if done < state["last_done"] * 0.5:  # nouveau fichier (audio après vidéo)
+                state["file"] += 1
+            state["last_done"] = done
             if total:
-                # vidéo puis audio : on répartit 0-90 % puis 90-98 %
-                frac = done / total
-                pct = frac * 90 if state["files"] == 0 else 90 + frac * 8
-                speed = d.get("speed") or 0
+                frac = min(1.0, done / total)
+                pct = frac * 90 if state["file"] == 0 else 90 + frac * 7
                 ctx.progress(pct, f"{done / 1e6:.0f} / {total / 1e6:.0f} Mo" + (f" — {speed / 1e6:.1f} Mo/s" if speed else ""))
-        elif d.get("status") == "finished":
-            state["files"] += 1
+        elif "[Merger]" in line or "Merging formats" in line:
+            ctx.progress(97, "Assemblage audio + vidéo")
 
-    opts = {
-        **_base_opts(),
-        "format": fmt,
-        "merge_output_format": "mp4",
-        "outtmpl": str(dest_dir / "source.%(ext)s"),
-        "progress_hooks": [hook],
-        "concurrent_fragment_downloads": 4,
-        "overwrites": True,
-    }
-    if range_start is not None or range_end is not None:
-        from yt_dlp.utils import download_range_func
-
-        opts["download_ranges"] = download_range_func(None, [(range_start or 0, range_end or float("inf"))])
-        opts["force_keyframes_at_cuts"] = False
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url.strip(), download=True)
-    except Cancelled:
-        raise
-    except yt_dlp.utils.DownloadError as e:
-        if ctx.cancel_event.is_set():
-            raise Cancelled() from None
-        raise _friendly_error(e) from None
-    files = sorted(dest_dir.glob("source.*"), key=lambda p: p.stat().st_size, reverse=True)
+        run_process(cmd, ctx, on_line=on_line)
+    except ClipperError as e:
+        raise _friendly_error(Exception(_last_error_line(str(e)))) from None
+    files = sorted(dest_dir.glob(f"{out_name}.*"), key=lambda p: p.stat().st_size, reverse=True)
     files = [f for f in files if f.suffix.lower() in VIDEO_EXTS]
     if not files:
         raise ClipperError("Téléchargement terminé mais aucun fichier vidéo trouvé.")
-    meta = {"title": info.get("title") or "", "uploader": info.get("uploader") or "", "id": info.get("id")}
-    return files[0], meta
+    src = files[0]
+    if out_name == "download":
+        ctx.progress(98, "Découpe de la plage demandée")
+        src = trim(ctx, src, dest_dir / "source.mp4", range_start, range_end)
+        files[0].unlink(missing_ok=True)  # la vidéo complète n'est plus utile
+    return src, meta
+
+
+def _last_error_line(text: str) -> str:
+    lines = [l for l in text.splitlines() if "ERROR" in l]
+    return (lines[-1] if lines else text.splitlines()[-1] if text else "").replace("ERROR:", "").strip()
+
+
+def trim(ctx: Context, src: Path, out: Path, range_start: float | None, range_end: float | None) -> Path:
+    """Découpe sans réencodage (quasi instantané)."""
+    args = []
+    if range_start:
+        args += ["-ss", f"{range_start:.3f}"]
+    args += ["-i", str(src)]
+    if range_end:
+        args += ["-t", f"{max(1.0, range_end - (range_start or 0)):.3f}"]
+    args += ["-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-avoid_negative_ts", "make_zero", str(out)]
+    run_ffmpeg(args, ctx)
+    return out
 
 
 def import_file(
@@ -177,17 +213,8 @@ def import_file(
                 shutil.copy2(src, dest)
     if range_start is None and range_end is None:
         return dest
-    out = dest_dir / f"source{src.suffix.lower()}"
-    args = []
-    if range_start:
-        args += ["-ss", f"{range_start:.3f}"]
-    args += ["-i", str(dest)]
-    if range_end:
-        args += ["-t", f"{max(1.0, range_end - (range_start or 0)):.3f}"]
-    args += ["-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-avoid_negative_ts", "make_zero", str(out)]
     ctx.progress(10, "Découpe de la plage demandée")
-    run_ffmpeg(args, ctx)
-    return out
+    return trim(ctx, dest, dest_dir / f"source{src.suffix.lower()}", range_start, range_end)
 
 
 def check_ffmpeg_ready() -> None:
