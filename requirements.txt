@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+pyyaml
+yt-dlp[default]
+faster-whisper
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
+librosa
+soundfile
+scenedetect
+opencv-python-headless
+pillow
+numpy
+pytest

@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+workspace/
+output/
+models/
+data/
+bin/*.dll
+*.log
+*.part
+tests/_tmp/

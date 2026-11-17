@@ -1,0 +1,146 @@
+# ============================================================
+#  Auto Clipper - réglages
+#  Toutes les valeurs absentes reprennent leur valeur par défaut
+#  (voir clipper/config.py). Redémarre le serveur après modification.
+# ============================================================
+
+server:
+  host: 127.0.0.1        # ne pas exposer sur le réseau
+  port: 8000
+  open_browser: true     # ouvre le navigateur au démarrage
+
+# Dossiers (relatifs au dossier du projet)
+paths:
+  workspace: workspace   # cache par projet (source, audio, proxy, analyses)
+  output: output         # clips finaux
+  models: models         # modèles Whisper et détection de visage
+  database: data/clipper.db
+
+# Outils externes : "auto" = détection automatique
+tools:
+  ffmpeg: auto
+  ffprobe: auto
+  ollama: auto
+  js_runtime: node       # runtime JavaScript de yt-dlp (node ou deno)
+
+# Valeurs par défaut du formulaire "Nouveau projet"
+defaults:
+  clips: 5
+  min_duration: 20       # secondes
+  max_duration: 60
+  layout: auto           # auto | facecam | blur | track
+  language: auto         # auto | fr | en
+  subtitle_preset: classique
+  hook_title: true
+
+download:
+  max_height: 1080
+
+# Contexte donné à l'IA pour écrire titres, descriptions et hashtags
+metadata:
+  content_hint: "Gameplay GTA 6 (streams, vidéos de créateurs, gameplay perso)"
+
+transcription:
+  model: large-v3-turbo
+  device: cuda           # cuda | cpu
+  compute_type: float16  # en cas d'erreur : int8_float16 puis int8 sur CPU
+  batch_size: 16
+  # En dessous de cette part de parole (0-1), la vidéo est traitée
+  # comme du "gameplay sans voix" (scoring audio + scènes + mouvement)
+  min_speech_ratio: 0.12
+
+ollama:
+  url: http://127.0.0.1:11434
+  model: qwen2.5:7b
+  temperature: 0.2
+  num_ctx: 8192
+  window_minutes: 6      # taille des fenêtres de transcription envoyées au LLM
+  overlap_minutes: 1
+  timeout: 180           # secondes par requête
+
+# Poids du score final (normalisés automatiquement)
+scoring:
+  weights:
+    llm: 0.50
+    audio: 0.20
+    scenes: 0.12
+    motion: 0.18
+  # Profil utilisé automatiquement quand la vidéo n'a pas (ou peu) de voix
+  weights_no_voice:
+    audio: 0.45
+    scenes: 0.20
+    motion: 0.35
+  # Pénalité appliquée aux moments trouvés par les signaux seuls
+  # quand la vidéo contient de la voix (le LLM ne les a pas retenus)
+  signal_only_factor: 0.85
+  boundary_margin: 0.3   # marge (s) autour des mots au début/à la fin
+  min_gap: 2.0           # écart minimum (s) entre deux clips
+
+reframe:
+  output_width: 1080
+  output_height: 1920
+  facecam_height_ratio: 0.35   # part de l'écran pour la facecam (layout facecam)
+  blur_sigma: 18
+  blur_zoom: 1.15             # agrandit l'image de jeu en layout blur (1 = pleine largeur)
+  track_smoothing: 0.85        # 0 = suit sans lissage, proche de 1 = très lisse
+
+render:
+  encoder: auto          # auto | h264_nvenc | libx264
+  video_bitrate: 12M
+  max_bitrate: 16M
+  audio_bitrate: 192k
+  loudness: -14          # LUFS
+  max_fps: 60
+
+# Presets de sous-titres. Couleurs au format #RRGGBB.
+# y = position verticale du centre des sous-titres (0 = haut, 1 = bas)
+subtitle_presets:
+  classique:
+    label: Classique
+    font_file: Montserrat-Black.ttf
+    font_size: 96
+    uppercase: true
+    color: "#FFFFFF"
+    active_color: "#FFE600"
+    keyword_colors: ["#FFE600", "#3DFF6E"]
+    outline_color: "#000000"
+    outline: 7
+    shadow: 2
+    max_words: 3
+    active_scale: 108
+    y: 0.66
+  gaming_neon:
+    label: Gaming néon
+    font_file: Anton-Regular.ttf
+    font_size: 104
+    uppercase: true
+    color: "#FFFFFF"
+    active_color: "#00F0FF"
+    keyword_colors: ["#FF2DAA", "#B6FF00"]
+    outline_color: "#12002B"
+    outline: 8
+    shadow: 0
+    max_words: 3
+    active_scale: 112
+    y: 0.66
+  minimal:
+    label: Minimal
+    font_file: Montserrat-ExtraBold.ttf
+    font_size: 74
+    uppercase: false
+    color: "#FFFFFF"
+    active_color: "#FFFFFF"
+    keyword_colors: ["#FFD43B", "#69DB7C"]
+    outline_color: "#000000"
+    outline: 5
+    shadow: 0
+    max_words: 4
+    active_scale: 100
+    y: 0.70
+
+hook:
+  duration: 3.0          # secondes d'affichage du titre hook
+  font_file: Montserrat-Black.ttf
+  font_size: 70
+  color: "#000000"
+  box_color: "#FFFFFF"
