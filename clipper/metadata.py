@@ -66,6 +66,10 @@ def generate(ctx: Context, clip: dict, excerpt: str, source_title: str, hint: st
         ctx.warn(f"Métadonnées par défaut (LLM indisponible : {e})")
         return fallback(clip, source_title)
     fb = fallback(clip, source_title)
+    # les hashtags ont leur propre champ : on les retire du titre / de la description
+    for k in ("title", "description", "hook"):
+        if res.get(k):
+            res[k] = re.sub(r"\s*#\w+", "", str(res[k])).strip()
     tags = []
     for h in res.get("hashtags") or []:
         h = "#" + re.sub(r"[^\w]", "", str(h).lstrip("#"))

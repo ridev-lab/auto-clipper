@@ -118,6 +118,19 @@ Si la vidéo a moins de 12 % de parole, le profil **gameplay sans voix** s'activ
 automatiquement (audio + scènes + mouvement). Les bornes sont alignées sur les mots et les
 phrases (jamais de coupe au milieu d'un mot), avec 0,3 s de marge.
 
+### Layout automatique
+En mode **auto**, la facecam est d'abord cherchée sur ~30 images de la vidéo : un visage
+qui reste au même endroit, qui **bouge** d'une image à l'autre (une vignette ou une affiche
+fixe est ignorée) et qui n'est pas minuscule. Puis le layout est choisi **clip par clip** :
+
+| Ce qu'on voit pendant le clip | Layout choisi |
+|---|---|
+| la webcam incrustée est visible | **Facecam** (webcam en haut, jeu en bas) |
+| un grand visage occupe l'écran (webcam plein écran, IRL) | **Suivi** (recadrage vertical qui suit le visage) |
+| sinon (gameplay) | **Fond flou** |
+
+Si le cadre détecté n'est pas parfait, corrige-le dans l'éditeur (« Régler la zone facecam »).
+
 ## 6. Réglages : `config.yaml`
 
 Tout est commenté dans le fichier. Redémarre le serveur après une modification.

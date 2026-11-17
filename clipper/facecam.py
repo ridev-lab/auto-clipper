@@ -17,6 +17,8 @@ from .config import ffmpeg
 from .utils import CREATE_NO_WINDOW, Context, cached_step
 
 WORK_W = 960
+MAX_CAM_FACE = 0.14   # largeur max d'un visage de webcam incrustée (part de l'image)
+BIG_FACE = 0.12       # au-delà : visage « plein écran » → layout suivi
 
 
 def grab_frame(src: Path, t: float, width: int = WORK_W):
@@ -62,7 +64,8 @@ def _cluster(faces: list[tuple[int, tuple]], w: int, h: int) -> list[list[tuple[
     for fi, f in faces:
         cx, cy = f[0] + f[2] / 2, f[1] + f[3] / 2
         for c in clusters:
-            ref = c[0][1]
+            # référence = médiane du groupe (robuste au premier visage mal placé)
+            ref = [float(np.median([g[1][k] for g in c])) for k in range(4)]
             rcx, rcy = ref[0] + ref[2] / 2, ref[1] + ref[3] / 2
             size_ratio = f[2] / max(1.0, ref[2])
             if abs(cx - rcx) < 0.06 * w and abs(cy - rcy) < 0.08 * h and 0.6 < size_ratio < 1.6:
@@ -90,6 +93,23 @@ def _find_edge(P: np.ndarray, axis: str, rng, span: tuple[int, int], thr: float 
     return None
 
 
+def face_liveness(frames: list, face: tuple) -> float:
+    """Variation moyenne (0-255) de la zone du visage au fil des images :
+    quasi nulle pour une image fixe, nettement plus haute pour une webcam."""
+    import cv2
+
+    fx, fy, fw, fh = (int(round(v)) for v in face)
+    crops = []
+    for fr in frames:
+        c = fr[max(0, fy) : fy + fh, max(0, fx) : fx + fw]
+        if c.size == 0:
+            continue
+        crops.append(cv2.resize(cv2.cvtColor(c, cv2.COLOR_BGR2GRAY), (32, 32)).astype(np.float32))
+    if len(crops) < 3:
+        return 0.0
+    return float(np.std(np.stack(crops), axis=0).mean())
+
+
 def find_rect(P: np.ndarray, face: tuple, w: int, h: int) -> tuple[list[int], str]:
     fx, fy, fw, fh = face
     ys = (int(fy - 0.6 * fh), int(min(h, fy + 1.6 * fh)))
@@ -100,28 +120,35 @@ def find_rect(P: np.ndarray, face: tuple, w: int, h: int) -> tuple[list[int], st
     bottom = _find_edge(P, "y", range(int(fy + 1.4 * fh), int(min(h, fy + 4 * fh))), xs)
     found = sum(v is not None for v in (left, right, top, bottom))
     cx = fx + fw / 2
-    # valeurs de repli : webcam 16:9 d'environ 3 largeurs de visage
-    est_w = fw * 3.2
+    # valeurs de repli prudentes (mieux vaut zoomer un peu sur le visage
+    # qu'inclure du gameplay dans la zone facecam)
+    est_w = fw * 2.4
     if left is not None and right is not None:
         est_w = right - left
-    est_h = est_w * 9 / 16
+    est_h = fh * 1.6
     if top is not None and bottom is not None:
         est_h = bottom - top
     if left is None:
-        left = right - est_w if right is not None else cx - est_w / 2
-        if left < 1.2 * fw:  # visage proche du bord : la webcam touche le bord
+        if right is not None:
+            left = right - est_w
+        elif fx < 1.2 * fw:  # visage proche du bord : la webcam touche le bord
             left = 0
+        else:
+            left = cx - est_w / 2
     if right is None:
         right = left + est_w
-        if w - right < 1.2 * fw:
+        if w - right < 0.5 * fw:
             right = w
     if top is None:
-        top = bottom - est_h if bottom is not None else fy + fh * 0.45 - est_h * 0.42
-        if top < 1.2 * fh:
+        if bottom is not None:
+            top = bottom - est_h
+        elif fy < 1.0 * fh:
             top = 0
+        else:
+            top = fy + fh * 0.45 - est_h * 0.45
     if bottom is None:
         bottom = top + est_h
-        if h - bottom < 1.2 * fh:
+        if h - bottom < 0.5 * fh:
             bottom = h
     left, right = max(0, left), min(w, right)
     top, bottom = max(0, top), min(h, bottom)
@@ -129,7 +156,42 @@ def find_rect(P: np.ndarray, face: tuple, w: int, h: int) -> tuple[list[int], st
     return [int(left), int(top), int(right - left), int(bottom - top)], method
 
 
-def detect_facecam(ctx: Context, src: Path, info: dict, n_frames: int = 24, pct_range=(0, 100)) -> dict:
+def auto_layout_for_clip(src: Path, info: dict, facecam: dict | None, start: float, end: float, samples: int = 6) -> str:
+    """Choix du layout pour un clip en mode auto :
+    - facecam : la webcam incrustée est visible pendant le clip ;
+    - track   : un grand visage occupe l'écran (webcam plein écran, IRL) ;
+    - blur    : sinon (gameplay)."""
+    scale = WORK_W / info["width"]
+    rect = facecam.get("rect") if facecam and facecam.get("found") else None
+    det = None
+    in_cam = big = n = 0
+    for t in np.linspace(start + 0.5, max(start + 0.6, end - 0.5), samples):
+        img = grab_frame(src, float(t))
+        if img is None:
+            continue
+        n += 1
+        if det is None:
+            det = FaceDetector((img.shape[1], img.shape[0]), threshold=0.6)
+        faces = det.detect(img)
+        if rect:
+            x, y, w, h = (v * scale for v in rect)
+            # zone facecam élargie de 20 % pour tolérer les mouvements
+            x0, y0, x1, y1 = x - 0.2 * w, y - 0.2 * h, x + 1.2 * w, y + 1.2 * h
+            cam_max = MAX_CAM_FACE * img.shape[1]
+            if any(x0 <= f[0] + f[2] / 2 <= x1 and y0 <= f[1] + f[3] / 2 <= y1 and f[2] <= cam_max for f in faces):
+                in_cam += 1
+        if any(f[2] >= BIG_FACE * img.shape[1] for f in faces):
+            big += 1
+    if not n:
+        return "facecam" if rect else "blur"
+    if rect and in_cam >= max(2, np.ceil(0.4 * n)):
+        return "facecam"
+    if big >= np.ceil(0.5 * n):
+        return "track"
+    return "blur"
+
+
+def detect_facecam(ctx: Context, src: Path, info: dict, n_frames: int = 30, pct_range=(0, 100)) -> dict:
     def compute() -> dict:
         import cv2
 
@@ -160,18 +222,34 @@ def detect_facecam(ctx: Context, src: Path, info: dict, n_frames: int = 24, pct_
         for c in clusters:
             n = len({fi for fi, _ in c})
             fw_med = float(np.median([f[2] for _, f in c]))
-            if fw_med > 0.3 * w:  # visage plein écran : pas une incrustation
+            if fw_med > MAX_CAM_FACE * w:  # gros visage : webcam plein écran, pas une incrustation
+                continue
+            if fw_med < 0.035 * w:  # trop petit : vignette, affiche, PNJ lointain
+                continue
+            cx = float(np.median([f[0] + f[2] / 2 for _, f in c])) / w
+            cy = float(np.median([f[1] + f[3] / 2 for _, f in c])) / h
+            if 0.38 < cx < 0.62 and 0.25 < cy < 0.75:  # plein centre : rarement une incrustation
                 continue
             if n > best_n:
                 best, best_n = c, n
-        need = max(3, int(0.3 * len(frames)))
+        # la facecam peut disparaître (scènes plein écran) : 30 % des images suffisent,
+        # les vignettes fixes sont écartées par le test de mouvement ci-dessous
+        need = max(4, int(np.ceil(0.3 * len(frames))))
         if not best or best_n < need:
             return {"found": False, "reason": "aucun visage fixe détecté", "frames": len(frames), "ref_w": w}
         face = tuple(float(np.median([f[k] for _, f in best])) for k in range(4))
-        # contours persistants (présents sur 60 % des images)
-        edges = [cv2.Canny(cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY), 60, 150) > 0 for fr in frames]
-        P = np.mean(edges, axis=0) >= 0.6
-        rect, method = find_rect(P, face, w, h)
+        live = face_liveness(frames, face)
+        if live < 4.0:
+            # visage immobile d'une image à l'autre : vignette, affiche ou avatar figé
+            ctx.log(f"Visage fixe ignoré : image statique (variation {live:.1f})")
+            return {"found": False, "reason": "visage statique (image, pas une webcam)", "frames": len(frames), "liveness": round(live, 2)}
+        # contours persistants, calculés sur les images où la webcam est visible
+        with_cam = sorted({fi for fi, _ in best})
+        edges = [cv2.Canny(cv2.cvtColor(frames[i], cv2.COLOR_BGR2GRAY), 60, 150) > 0 for i in with_cam]
+        E = np.mean(edges, axis=0)
+        rect, method = find_rect(E >= 0.6, face, w, h)
+        if method == "estimation":
+            rect, method = find_rect(E >= 0.4, face, w, h)
         ctx.progress(hi, "Facecam analysée")
         to_src = lambda v: int(round(v * scale))
         rect_src = [to_src(v) for v in rect]
@@ -186,4 +264,4 @@ def detect_facecam(ctx: Context, src: Path, info: dict, n_frames: int = 24, pct_
             "frames": len(frames),
         }
 
-    return cached_step(ctx, "facecam", {"v": 1}, compute)
+    return cached_step(ctx, "facecam", {"v": 5}, compute)

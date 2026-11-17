@@ -171,6 +171,9 @@ def run_process(
 ) -> str:
     """Lance une commande, transmet chaque ligne de stdout à on_line, gère
     l'annulation et lève ClipperError avec la fin de stderr en cas d'échec."""
+    if env is None:
+        # sorties des sous-processus Python en UTF-8 (sinon cp1252 sous Windows)
+        env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
     proc = subprocess.Popen(
         [str(c) for c in cmd],
         stdout=subprocess.PIPE,

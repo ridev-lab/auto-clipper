@@ -165,6 +165,18 @@ def test_filtergraph_contains_all_parts(tmp_path):
     assert lines[0] == "0.00 crop@trk x 100;" and "150" in lines[5]
 
 
+def test_face_liveness_rejects_static_images():
+    from clipper.facecam import face_liveness
+
+    rng = np.random.default_rng(0)
+    static = rng.integers(0, 255, (90, 160, 3), dtype=np.uint8)
+    frames_static = [static.copy() for _ in range(8)]
+    frames_live = [rng.integers(0, 255, (90, 160, 3), dtype=np.uint8) for _ in range(8)]
+    face = (40, 20, 30, 30)
+    assert face_liveness(frames_static, face) < 1.0
+    assert face_liveness(frames_live, face) > 20.0
+
+
 # --- métadonnées -------------------------------------------------------------
 
 def test_keywords_marking():

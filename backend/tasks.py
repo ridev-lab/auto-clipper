@@ -10,7 +10,7 @@ from clipper import llm
 from clipper.audio_analysis import analyze_audio
 from clipper.config import get_config, workspace_dir
 from clipper.download import VIDEO_EXTS, download_youtube, import_file
-from clipper.facecam import detect_facecam
+from clipper.facecam import auto_layout_for_clip, detect_facecam
 from clipper.highlights import describe, find_highlights
 from clipper.metadata import apply_keywords, generate as gen_metadata
 from clipper.motion import analyze_motion
@@ -185,11 +185,18 @@ def process_project(ctx: Context, pid: str) -> None:
             facecam = facecam or {"found": False}
         db.update_project(pid, facecam=facecam)
     if hl:
-        layout = resolve_layout(opts["layout"], facecam)
+        base_layout = resolve_layout(opts["layout"], facecam)
         for rank, c in enumerate(hl["selected"]):
             meta = c.get("meta") or {}
             words = clip_words_from_transcript(tr, c["start"], c["end"])
             apply_keywords(words, meta.get("keywords", []))
+            layout = base_layout
+            if opts["layout"] == "auto":
+                # choix par clip : la webcam peut être masquée, ou plein écran
+                layout = auto_layout_for_clip(src, info, facecam, c["start"], c["end"])
+                if layout != base_layout:
+                    names = {"facecam": "facecam", "track": "suivi du visage", "blur": "fond flou"}
+                    ctx.log(f"Clip {rank + 1} : layout {names[layout]} (adapté au contenu de ce passage)")
             db.create_clip(
                 pid, rank=rank, manual=0, start=c["start"], end=c["end"], score=c["score"], signals=c["signals"],
                 hook=meta.get("hook") or c.get("hook") or "", reason=c.get("reason") or "", layout=layout,
