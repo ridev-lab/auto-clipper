@@ -1,16 +1,31 @@
-fastapi
-uvicorn[standard]
-python-multipart
-httpx
-pyyaml
-yt-dlp[default]
-faster-whisper
-nvidia-cublas-cu12
-nvidia-cudnn-cu12==9.*
-librosa
-soundfile
-scenedetect
-opencv-python-headless
-pillow
-numpy
-pytest
+# Auto Clipper — Python 3.12, Windows, GPU NVIDIA (CUDA 12)
+# Pas de PyTorch : faster-whisper (CTranslate2) n'a besoin que de cuBLAS et cuDNN,
+# installés ci-dessous sous forme de paquets pip (aucun CUDA Toolkit à installer).
+
+# --- serveur web ---
+fastapi==0.163.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.34
+httpx==0.28.1
+pyyaml==6.0.3
+
+# --- téléchargement YouTube (inclut le composant yt-dlp-ejs) ---
+# volontairement non épinglé : YouTube impose des mises à jour fréquentes
+yt-dlp[default]>=2026.10.26
+
+# --- transcription GPU ---
+faster-whisper==1.2.1
+ctranslate2==4.9.0
+nvidia-cublas-cu12==12.9.2.10
+nvidia-cudnn-cu12==9.28.1.4
+
+# --- analyse audio / vidéo ---
+librosa==1.0.1
+soundfile==0.14.0
+scenedetect==0.7.3
+opencv-python==5.0.0.93
+pillow==13.0.0
+numpy==2.5.5
+
+# --- tests ---
+pytest==9.2.0

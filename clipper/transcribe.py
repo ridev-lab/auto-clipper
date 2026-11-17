@@ -25,7 +25,7 @@ def transcribe(ctx: Context, audio: Path | None, lang: str, duration: float) -> 
     if audio is None or not Path(audio).exists():
         ctx.warn("Pas de piste audio : transcription ignorée")
         return {**EMPTY, "duration": duration}
-    params = {"model": tcfg["model"], "lang": lang or "auto", "v": 1}
+    params = {"model": tcfg["model"], "lang": lang or "auto", "v": 2}
 
     def compute() -> dict:
         from . import llm

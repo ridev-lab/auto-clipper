@@ -29,6 +29,34 @@ HALLUCINATIONS = [
 _HALLU = re.compile("|".join(HALLUCINATIONS), re.I)
 
 
+_PUNCT_ONLY = re.compile(r"^[\W_]+$", re.U)
+_JOIN_PREV = re.compile(r"^['’\-]")          # 'est, -mère, -y
+_JOIN_NEXT = re.compile(r"['’]$")            # j', l', c'
+
+
+def merge_tokens(words: list[dict]) -> list[dict]:
+    """Recolle les morceaux que Whisper sépare en français :
+    c + 'est → c'est, grand + -mère → grand-mère, quoi + ? → quoi ?"""
+    out: list[dict] = []
+    for w in words:
+        t = w["t"]
+        if out:
+            prev = out[-1]
+            close = w["s"] - prev["e"] < 0.35
+            if close and (_JOIN_PREV.match(t) or _JOIN_NEXT.search(prev["t"])):
+                prev["t"] += t
+                prev["e"] = w["e"]
+                prev["p"] = min(prev.get("p", 1), w.get("p", 1))
+                continue
+            if _PUNCT_ONLY.match(t):
+                sep = " " if t[:1] in "?!:;»-–—" else ""
+                prev["t"] += sep + t
+                prev["e"] = max(prev["e"], w["e"])
+                continue
+        out.append(dict(w))
+    return out
+
+
 def emit(**kw):
     sys.stdout.write(json.dumps(kw, ensure_ascii=False) + "\n")
     sys.stdout.flush()
@@ -88,16 +116,22 @@ def run(args) -> dict:
             dur = max(0.1, float(info.duration))
             for seg in segments:
                 text = (seg.text or "").strip()
-                if not text or _HALLU.search(text):
+                if not text:
+                    continue
+                m = _HALLU.search(text)
+                # segment qui n'est QUE la phrase fantôme (pas une vraie phrase qui la contient)
+                if m and len(text) <= len(m.group(0)) + 20:
                     continue
                 if seg.no_speech_prob > 0.75 and seg.avg_logprob < -0.9:
                     continue
                 w0 = len(words)
+                seg_words = []
                 for w in seg.words or []:
                     t = (w.word or "").strip()
                     if not t:
                         continue
-                    words.append({"s": round(w.start, 3), "e": round(max(w.end, w.start + 0.05), 3), "t": t, "p": round(w.probability, 3)})
+                    seg_words.append({"s": round(w.start, 3), "e": round(max(w.end, w.start + 0.05), 3), "t": t, "p": round(w.probability, 3)})
+                words.extend(merge_tokens(seg_words))
                 if len(words) > w0:
                     segs.append({"s": round(seg.start, 3), "e": round(seg.end, 3), "text": text, "w0": w0, "w1": len(words)})
                 emit(type="progress", pct=min(99.0, seg.end / dur * 100))
