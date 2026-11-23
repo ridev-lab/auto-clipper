@@ -1,5 +1,7 @@
 # Auto Clipper
 
+[**English documentation**](README.en.md) · [Contribuer](CONTRIBUTING.md) · [Sécurité](SECURITY.md)
+
 Outil **100 % local et gratuit** qui transforme une vidéo (lien YouTube ou fichier) en
 **clips verticaux 9:16 sous-titrés**, prêts pour TikTok, YouTube Shorts et Instagram Reels.
 Pensé pour le gameplay GTA 6 (streams, vidéos de créateurs, gameplay perso), y compris
@@ -210,6 +212,14 @@ et exporte le ZIP.
 Le serveur n'écoute que sur ta machine (`127.0.0.1`) et refuse les requêtes venant
 d'autres sites web ouverts dans ton navigateur. Détails et bonnes pratiques dans
 [SECURITY.md](SECURITY.md). Ne l'expose jamais sur Internet : il n'a pas de mot de passe.
+
+## Licence open source
+
+Le **code source original d'Auto Clipper** est publié sous la **GNU General Public License v3.0 uniquement** (**GPL-3.0-only**). Tu peux l'utiliser, le modifier et le redistribuer, **y compris commercialement**, dans le respect des conditions de la GPLv3. Les versions dérivées distribuées doivent notamment rester sous cette licence et fournir le code source correspondant.
+
+Consulte le texte intégral dans [LICENSE](LICENSE). Les polices intégrées sont soumises à leurs propres licences [SIL Open Font License](fonts/LICENCES.md) ; les logiciels, bibliothèques, modèles et vidéos tiers conservent leurs licences et conditions respectives.
+
+Copyright © 2026 Richard Informatique et contributeurs, pour le code original du projet.
 
 ## 11. Droits d'auteur
 
