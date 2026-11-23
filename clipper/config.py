@@ -17,7 +17,7 @@ FONTS_DIR = ROOT / "fonts"
 FRONTEND_DIR = ROOT / "frontend"
 
 DEFAULTS: dict = {
-    "server": {"host": "127.0.0.1", "port": 8000, "open_browser": True},
+    "server": {"host": "127.0.0.1", "port": 8000, "open_browser": True, "allowed_hosts": []},
     "paths": {
         "workspace": "workspace",
         "output": "output",

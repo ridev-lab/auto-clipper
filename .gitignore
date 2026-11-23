@@ -1,12 +1,40 @@
+# --- environnement Python ---
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# --- données locales (vidéos, analyses, clips, modèles, base) ---
 workspace/
 output/
 models/
 data/
-bin/*.dll
+*.db
+*.sqlite
+*.sqlite3
+tests/_tmp/
+
+# --- DLL CUDA copiées à la main (solution de secours) ---
+bin/
+
+# --- secrets et fichiers personnels : ne jamais les publier ---
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+cookies*.txt
+*.cookies
+config.local.yaml
+secrets*
+
+# --- outils / éditeurs ---
+.claude/
+.vscode/
+.idea/
 *.log
 *.part
-tests/_tmp/
+*.tmp
+Thumbs.db
+desktop.ini

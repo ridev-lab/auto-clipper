@@ -8,6 +8,7 @@ server:
   host: 127.0.0.1        # ne pas exposer sur le réseau
   port: 8000
   open_browser: true     # ouvre le navigateur au démarrage
+  allowed_hosts: []      # noms d'hôte acceptés en plus de localhost (voir SECURITY.md)
 
 # Dossiers (relatifs au dossier du projet)
 paths:

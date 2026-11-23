@@ -205,7 +205,13 @@ Le test de bout en bout génère une vidéo (mire + voix de synthèse Windows + 
 la traite entièrement, vérifie les clips 1080x1920, re-rend un clip en layout « suivi »
 et exporte le ZIP.
 
-## 10. Droits d'auteur
+## 10. Sécurité
+
+Le serveur n'écoute que sur ta machine (`127.0.0.1`) et refuse les requêtes venant
+d'autres sites web ouverts dans ton navigateur. Détails et bonnes pratiques dans
+[SECURITY.md](SECURITY.md). Ne l'expose jamais sur Internet : il n'a pas de mot de passe.
+
+## 11. Droits d'auteur
 
 L'outil fonctionne sur n'importe quelle vidéo, mais **publier des extraits de vidéos d'autres
 créateurs nécessite leur accord** (sinon : retrait, avertissement Content ID, voire

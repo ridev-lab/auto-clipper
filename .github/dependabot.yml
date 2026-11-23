@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Dépendances Python (requirements.txt et requirements-ci.txt)
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Actions GitHub utilisées par l'intégration continue
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday

@@ -25,6 +25,7 @@ from clipper.utils import STEPS, ClipperError, Context, read_json, write_json
 
 from . import db, tasks
 from .jobs import manager
+from .security import LocalOnlyMiddleware
 
 SAFE_NAME = re.compile(r"^[\w.\-]+$")
 UPLOADS = workspace_dir() / "_uploads"
@@ -38,7 +39,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Auto Clipper", lifespan=lifespan)
+app = FastAPI(title="Auto Clipper", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(LocalOnlyMiddleware)
 
 
 @app.exception_handler(ClipperError)
