@@ -108,6 +108,8 @@ Security model and disclosure guidance: [SECURITY.md](SECURITY.md). The server l
 
 ## License and release status
 
-The author has **not yet selected a source-code license**, so redistribution and modification rights are not granted by default. Before opening the repository for community contributions, choose an appropriate license and document any third-party assets and attribution.
+Auto Clipper's **original source code** is licensed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. Use, modification and **commercial distribution** are permitted under the GPL's conditions, including source-code availability and copyleft requirements when distributing derivatives. See the complete [LICENSE](LICENSE).
+
+Copyright © 2026 Richard Informatique and contributors for the project's original code. Bundled subtitle fonts are licensed separately under the [SIL Open Font License](fonts/LICENCES.md); third-party dependencies, external AI models and media retain their own licenses and terms.
 
 A stable installer, screenshots/demo assets and release archive are potential next steps; they are **not yet claimed as published releases**.
