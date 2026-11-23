@@ -33,3 +33,17 @@ jobs:
         run: python -m pytest tests/test_units.py -q
       - name: Compilation de tous les modules
         run: python -m compileall -q clipper backend clipper.py server.py
+
+  secrets:
+    name: Recherche de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"

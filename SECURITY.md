@@ -2,9 +2,15 @@
 
 ## Signaler une faille
 
-Ne publie pas de faille dans une issue publique. Utilise le bouton
-**Security → Report a vulnerability** du dépôt GitHub (signalement privé) : tu
-recevras une réponse dès que possible.
+Le dépôt est privé : signale une faille directement au propriétaire du dépôt.
+S'il devient public un jour, active **Settings → Security → Private vulnerability
+reporting** et ne publie jamais de faille dans une issue publique.
+
+## Protections du dépôt
+
+- Dependabot : alertes sur les dépendances vulnérables + correctifs automatiques ;
+- intégration continue : tests unitaires et recherche de secrets (gitleaks) à chaque envoi ;
+- historique sans adresse e-mail personnelle (adresse masquée GitHub).
 
 ## Modèle de sécurité
 
