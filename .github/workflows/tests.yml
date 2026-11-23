@@ -38,6 +38,10 @@ jobs:
     name: Recherche de secrets (gitleaks)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # gitleaks liste les commits de la pull request via l'API
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v5
         with:
