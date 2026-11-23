@@ -58,4 +58,4 @@ Le test d'intégration [`tests/test_e2e_offline.py`](tests/test_e2e_offline.py) 
 
 **Langues :** français ou anglais dans les issues et pull requests.
 
-**Licence :** les conditions de réutilisation du code restent à préciser par le propriétaire avant l'ouverture aux contributions externes. L'absence de licence explicite ne signifie pas que le code est librement réutilisable.
+**Licence :** le code original est sous **GNU GPL v3.0 uniquement (GPL-3.0-only)**. En proposant une contribution, vérifie que tu peux la fournir selon cette licence et signale toute ressource tierce ou condition de licence différente. Voir [LICENSE](LICENSE) et [fonts/LICENCES.md](fonts/LICENCES.md).
