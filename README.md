@@ -213,6 +213,14 @@ Le serveur n'écoute que sur ta machine (`127.0.0.1`) et refuse les requêtes ve
 d'autres sites web ouverts dans ton navigateur. Détails et bonnes pratiques dans
 [SECURITY.md](SECURITY.md). Ne l'expose jamais sur Internet : il n'a pas de mot de passe.
 
+## Licence open source
+
+Le **code source original d'Auto Clipper** est publié sous la **GNU General Public License v3.0 uniquement** (**GPL-3.0-only**). Tu peux l'utiliser, le modifier et le redistribuer, **y compris commercialement**, dans le respect des conditions de la GPLv3. Les versions dérivées distribuées doivent notamment rester sous cette licence et fournir le code source correspondant.
+
+Consulte le texte intégral dans [LICENSE](LICENSE). Les polices intégrées sont soumises à leurs propres licences [SIL Open Font License](fonts/LICENCES.md) ; les logiciels, bibliothèques, modèles et vidéos tiers conservent leurs licences et conditions respectives.
+
+Copyright © 2026 Richard Informatique et contributeurs, pour le code original du projet.
+
 ## 11. Droits d'auteur
 
 L'outil fonctionne sur n'importe quelle vidéo, mais **publier des extraits de vidéos d'autres
