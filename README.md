@@ -1,5 +1,7 @@
 # Auto Clipper
 
+[**English documentation**](README.en.md) · [Contribuer](CONTRIBUTING.md) · [Sécurité](SECURITY.md)
+
 Outil **100 % local et gratuit** qui transforme une vidéo (lien YouTube ou fichier) en
 **clips verticaux 9:16 sous-titrés**, prêts pour TikTok, YouTube Shorts et Instagram Reels.
 Pensé pour le gameplay GTA 6 (streams, vidéos de créateurs, gameplay perso), y compris
