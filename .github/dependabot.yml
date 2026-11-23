@@ -7,6 +7,11 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # Les roues Windows des bibliothèques CUDA (cuBLAS, cuDNN) sortent souvent
+      # après celles de Linux : Dependabot (sous Linux) proposerait des versions
+      # impossibles à installer sous Windows. Mise à jour manuelle, testée sur GPU.
+      - dependency-name: "nvidia-*"
     groups:
       python:
         patterns: ["*"]
